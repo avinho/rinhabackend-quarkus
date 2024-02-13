@@ -6,6 +6,7 @@ import avinho.records.ExtratoResponse;
 import avinho.records.SaldoCliente;
 import avinho.records.TransacaoRequest;
 import avinho.records.TransacaoResponse;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -22,50 +23,41 @@ public class ClienteController {
     @POST
     @Path("/{id}/transacoes")
     @Transactional
+    @RunOnVirtualThread
     public RestResponse<TransacaoResponse> transacao(Long id, TransacaoRequest transacao) {
         if (id < 0 || id > 5) return RestResponse.status(404);
 
         if (!validaTransacao(transacao)) return RestResponse.status(422);
 
-        int valor = Integer.parseInt(transacao.valor());
-
         Cliente cliente = Cliente.findById(id);
+        int valor = transacao.valor().intValue();
+        int limite = cliente.limite;
+
+        if (cliente.saldo <= -limite || valor > limite || (cliente.saldo - valor) < -limite) {
+            return RestResponse.status(422);
+        }
 
         switch (transacao.tipo()) {
-            case "c" -> {
-                if (valor < 0 || valor > cliente.limite) {
-                    return RestResponse.status(422);
-                }
+            case 'c' -> {
+                if (valor < 0) return RestResponse.status(422);
                 cliente.saldo += valor;
             }
-            case "d" -> {
-                int novoSaldo = cliente.saldo - valor;
-                if (novoSaldo < -cliente.limite) {
-                    return RestResponse.status(422);
-                }
-                cliente.saldo = novoSaldo;
+            case 'd' -> {
+                cliente.saldo -= valor;;
             }
             default -> RestResponse.status(422);
         }
 
+        Transacao newTransacao = new Transacao(valor, transacao.tipo(), transacao.descricao(), LocalDateTime.now(), id);
         cliente.persist();
-
-        Transacao newTransacao = new Transacao();
-        newTransacao.valor = valor;
-        newTransacao.tipo = transacao.tipo();
-        newTransacao.descricao = transacao.descricao();
-        newTransacao.realizada_em = LocalDateTime.now();
-        newTransacao.cliente_id = id;
-
         newTransacao.persist();
 
-        TransacaoResponse saldo = new TransacaoResponse(cliente.limite, cliente.saldo);
-
-        return RestResponse.ok(saldo);
+        return RestResponse.ok(new TransacaoResponse(limite, cliente.saldo));
     }
 
     @GET
     @Path("/{id}/extrato")
+    @RunOnVirtualThread
     public RestResponse<ExtratoResponse> extrato(Long id) {
         if (id < 0 || id > 5) {
             return RestResponse.status(404);
@@ -80,14 +72,26 @@ public class ClienteController {
         return RestResponse.ok(new ExtratoResponse(saldo, transacoes));
     }
 
-    public static boolean validaTransacao(TransacaoRequest data) {
-        return data.descricao() != null
-                && data.valor() != null
-                && data.tipo() != null
-                && !data.descricao().isEmpty()
-                && data.descricao().length() <= 10
-                && !data.valor().contains(".")
-                && data.tipo().length() == 1
-                && ("c".equals(data.tipo()) || "d".equals(data.tipo()));
+    private boolean validaTransacao(TransacaoRequest transacao) {
+        return transacao.descricao() != null
+                && transacao.valor() != null
+                && !transacao.descricao().isEmpty()
+                && transacao.descricao().length() <= 10
+                && validaTipo(transacao.tipo())
+                && validaValor(transacao.valor());
+    }
+
+    public static boolean validaValor(double valor) {
+        return valor % 1 == 0;
+    }
+
+    private boolean validaTipo(char type) {
+        final char[] VALID_TYPES = {'c', 'd'};
+        for (char validType : VALID_TYPES) {
+            if (type == validType) {
+                return true;
+            }
+        }
+        return false;
     }
 }

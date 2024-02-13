@@ -15,8 +15,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.45"
-          memory: "125MB"
+          cpus: "0.35"
+          memory: "80MB"
     networks:
       - rinha-network
 
@@ -38,8 +38,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.15"
-          memory: "50MB"
+          cpus: "0.1"
+          memory: "70MB"
     networks:
       - rinha-network
 
@@ -54,20 +54,20 @@ services:
       - "5432:5432"
     volumes:
       - ./src/main/resources/import.sql:/docker-entrypoint-initdb.d/import.sql
-    command: 'postgres -c autovacuum=on -c wal_compression=on -c effective_cache_size=8GB -c max_connections=300 -c synchronous_commit=off -c checkpoint_timeout=6000 -c full_page_writes=off'
+    command: postgres -c 'max_connections=500' -c 'full_page_writes=off' -c 'fsync=off' -c 'synchronous_commit=off' -c 'effective_io_concurrency=4' -c 'shared_buffers=230MB' -c 'checkpoint_timeout=1d' -c 'checkpoint_completion_target=0.9' -c 'wal_buffers=16MB' -c 'log_min_messages=panic' -c 'log_min_error_statement=panic'
     deploy:
       resources:
         limits:
-          cpus: "0.45"
-          memory: "250MB"
+          cpus: "0.7"
+          memory: "320MB"
     networks:
       - rinha-network
     healthcheck:
-      test: ["CMD", "pg_isready", "-q", "-d", "rinha", "-U", "admin"]
-      interval: 40s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ["CMD-SHELL", "pg_isready", "-q", "-d", "rinha", "-U", "admin"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 networks:
   rinha-network:
