@@ -1,3 +1,7 @@
+CREATE sequence Cliente_SEQ start with 1 increment by 50;
+
+CREATE sequence Transacao_SEQ start with 1 increment by 50;
+
 CREATE TABLE cliente (
                          id bigint not null,
                          limite integer,
@@ -9,7 +13,7 @@ CREATE TABLE transacao (
                            id bigint not null,
                            descricao varchar(10),
                            realizada_em timestamp(6),
-                           tipo varchar(255) not null,
+                           tipo char(1) not null,
                            valor integer not null,
                            cliente_id bigint,
                            primary key (id)

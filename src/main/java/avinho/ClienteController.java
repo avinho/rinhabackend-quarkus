@@ -32,27 +32,23 @@ public class ClienteController {
         Cliente cliente = Cliente.findById(id);
         int valor = transacao.valor().intValue();
         int limite = cliente.limite;
-
-        if (cliente.saldo <= -limite || valor > limite || (cliente.saldo - valor) < -limite) {
-            return RestResponse.status(422);
-        }
+        int saldo = cliente.saldo;
 
         switch (transacao.tipo()) {
-            case 'c' -> {
-                if (valor < 0) return RestResponse.status(422);
-                cliente.saldo += valor;
-            }
+            case 'c' -> saldo += valor;
             case 'd' -> {
-                cliente.saldo -= valor;;
+                if ((saldo - valor) < -limite) return RestResponse.status(422);
+                saldo -= valor;
             }
             default -> RestResponse.status(422);
         }
 
-        Transacao newTransacao = new Transacao(valor, transacao.tipo(), transacao.descricao(), LocalDateTime.now(), id);
+        cliente.saldo = saldo;
         cliente.persist();
-        newTransacao.persist();
 
-        return RestResponse.ok(new TransacaoResponse(limite, cliente.saldo));
+        new Transacao(valor, transacao.tipo(), transacao.descricao(), LocalDateTime.now(), id).persist();
+
+        return RestResponse.ok(new TransacaoResponse(limite, saldo));
     }
 
     @GET
@@ -64,10 +60,9 @@ public class ClienteController {
         }
 
         Cliente cliente = Cliente.findById(id);
+        List<Transacao> transacoes = Transacao.findLast10(id);
 
         SaldoCliente saldo = new SaldoCliente(cliente.saldo, LocalDateTime.now(), cliente.limite);
-
-        List<Transacao> transacoes = Transacao.findLast10(id);
 
         return RestResponse.ok(new ExtratoResponse(saldo, transacoes));
     }
@@ -81,7 +76,7 @@ public class ClienteController {
                 && validaValor(transacao.valor());
     }
 
-    public static boolean validaValor(double valor) {
+    private boolean validaValor(double valor) {
         return valor % 1 == 0;
     }
 
