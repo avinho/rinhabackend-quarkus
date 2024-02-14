@@ -1,6 +1,6 @@
 # Rinha de Backend, Segunda Edição: 2024/Q1 - Alvaro Marttinho
 
-Este projeto é a minha implementação para o desafio da Rinha de Backend 2024 usando:
+Este projeto é a minha implementação para o desafio da [Rinha](https://github.com/zanfranceschi/rinha-de-backend-2024-q1) de Backend 2024 usando:
 
  - **Java** (21) 
  - **Quarkus** (3.7.2)
