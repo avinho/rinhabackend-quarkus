@@ -11,8 +11,4 @@ import jakarta.persistence.Entity;
 public class Cliente extends PanacheEntity {
     public Integer limite;
     public Integer saldo;
-
-    public static Cliente findById(Long id) {
-        return find("id", id).firstResult();
-    }
 }

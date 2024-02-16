@@ -7,6 +7,7 @@ import avinho.records.SaldoCliente;
 import avinho.records.TransacaoRequest;
 import avinho.records.TransacaoResponse;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -29,7 +30,7 @@ public class ClienteController {
 
         if (!validaTransacao(transacao)) return RestResponse.status(422);
 
-        Cliente cliente = Cliente.findById(id);
+        Cliente cliente = Cliente.findById(id, LockModeType.PESSIMISTIC_WRITE);
         int valor = transacao.valor().intValue();
         int limite = cliente.limite;
         int saldo = cliente.saldo;
@@ -44,22 +45,22 @@ public class ClienteController {
         }
 
         cliente.saldo = saldo;
-        cliente.persist();
-
         new Transacao(valor, transacao.tipo(), transacao.descricao(), LocalDateTime.now(), id).persist();
+        cliente.persist();
 
         return RestResponse.ok(new TransacaoResponse(limite, saldo));
     }
 
     @GET
     @Path("/{id}/extrato")
+    @Transactional
     @RunOnVirtualThread
     public RestResponse<ExtratoResponse> extrato(Long id) {
         if (id < 0 || id > 5) {
             return RestResponse.status(404);
         }
 
-        Cliente cliente = Cliente.findById(id);
+        Cliente cliente = Cliente.findById(id, LockModeType.PESSIMISTIC_READ);
         List<Transacao> transacoes = Transacao.findLast10(id);
 
         SaldoCliente saldo = new SaldoCliente(cliente.saldo, LocalDateTime.now(), cliente.limite);
